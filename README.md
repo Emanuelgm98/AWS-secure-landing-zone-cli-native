@@ -1,5 +1,7 @@
 # AWS Secure Landing Zone · CLI-native
 
+**Language:** English · [Español](README.es.md)
+
 > A production-minded AWS landing-zone reference built for terminal-first operations.
 
 This repository is a CLI-native reference implementation for isolated `dev` and `prod` environments. It uses AWS CloudFormation JSON, AWS CLI v2 conventions, local contract tests and explicit safety gates.
@@ -7,6 +9,8 @@ This repository is a CLI-native reference implementation for isolated `dev` and 
 ![Validation](https://img.shields.io/badge/validation-local%20tests%20passing-2ea44f) ![IaC](https://img.shields.io/badge/IaC-CloudFormation%20JSON-ff9900) ![Security](https://img.shields.io/badge/security-no%20static%20keys-1f883d)
 
 ## Architecture
+
+The operator authenticates with AWS SSO, then the Makefile invokes phase scripts. CloudFormation creates the network foundation first, places the application behind an HTTPS ALB, keeps ECS and Aurora private, and sends security and operational telemetry to dedicated audit and observability services.
 
 ```mermaid
 flowchart TB
