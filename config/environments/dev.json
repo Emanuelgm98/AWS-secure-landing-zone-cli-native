@@ -1,0 +1,17 @@
+{
+  "Environment": "dev",
+  "Region": "us-east-1",
+  "VpcCidr": "10.20.0.0/16",
+  "AvailabilityZoneCount": 2,
+  "NatGatewayCount": 1,
+  "TaskDesiredCount": 1,
+  "TaskCpu": 256,
+  "TaskMemory": 512,
+  "AuroraMinACU": 0.5,
+  "AuroraMaxACU": 4,
+  "AuroraReaderCount": 0,
+  "EnableAuditStack": false,
+  "EnableCloudFront": false,
+  "EnableWaf": false,
+  "EnableInterfaceEndpoints": false
+}

@@ -1,0 +1,47 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Two-AZ VPC foundation. Dev provisions one NAT; prod provisions one NAT per AZ.",
+  "Parameters": {
+    "Environment": {"Type": "String", "AllowedValues": ["dev", "prod"]},
+    "VpcCidr": {"Type": "String", "Default": "10.20.0.0/16"},
+    "AvailabilityZoneCount": {"Type": "Number", "Default": 2, "MinValue": 2, "MaxValue": 2}
+  },
+  "Conditions": {"IsProd": {"Fn::Equals": [{"Ref": "Environment"}, "prod"]}, "IsDev": {"Fn::Equals": [{"Ref": "Environment"}, "dev"]}},
+  "Resources": {
+    "Vpc": {"Type": "AWS::EC2::VPC", "Properties": {"CidrBlock": {"Ref": "VpcCidr"}, "EnableDnsSupport": true, "EnableDnsHostnames": true, "Tags": [{"Key": "Name", "Value": {"Fn::Sub": "${Environment}-slz"}}, {"Key": "Environment", "Value": {"Ref": "Environment"}}]}},
+    "InternetGateway": {"Type": "AWS::EC2::InternetGateway"},
+    "VpcGatewayAttachment": {"Type": "AWS::EC2::VPCGatewayAttachment", "Properties": {"VpcId": {"Ref": "Vpc"}, "InternetGatewayId": {"Ref": "InternetGateway"}}},
+    "PublicSubnetA": {"Type": "AWS::EC2::Subnet", "Properties": {"VpcId": {"Ref": "Vpc"}, "CidrBlock": {"Fn::Select": [0, {"Fn::Cidr": [{"Ref": "VpcCidr"}, 16, 4]}]}, "AvailabilityZone": {"Fn::Select": [0, {"Fn::GetAZs": ""}]}, "MapPublicIpOnLaunch": false, "Tags": [{"Key": "Tier", "Value": "public"}]}},
+    "PublicSubnetB": {"Type": "AWS::EC2::Subnet", "Properties": {"VpcId": {"Ref": "Vpc"}, "CidrBlock": {"Fn::Select": [1, {"Fn::Cidr": [{"Ref": "VpcCidr"}, 16, 4]}]}, "AvailabilityZone": {"Fn::Select": [1, {"Fn::GetAZs": ""}]}, "MapPublicIpOnLaunch": false, "Tags": [{"Key": "Tier", "Value": "public"}]}},
+    "AppSubnetA": {"Type": "AWS::EC2::Subnet", "Properties": {"VpcId": {"Ref": "Vpc"}, "CidrBlock": {"Fn::Select": [2, {"Fn::Cidr": [{"Ref": "VpcCidr"}, 16, 4]}]}, "AvailabilityZone": {"Fn::Select": [0, {"Fn::GetAZs": ""}]}, "Tags": [{"Key": "Tier", "Value": "app"}]}},
+    "AppSubnetB": {"Type": "AWS::EC2::Subnet", "Properties": {"VpcId": {"Ref": "Vpc"}, "CidrBlock": {"Fn::Select": [3, {"Fn::Cidr": [{"Ref": "VpcCidr"}, 16, 4]}]}, "AvailabilityZone": {"Fn::Select": [1, {"Fn::GetAZs": ""}]}, "Tags": [{"Key": "Tier", "Value": "app"}]}},
+    "DataSubnetA": {"Type": "AWS::EC2::Subnet", "Properties": {"VpcId": {"Ref": "Vpc"}, "CidrBlock": {"Fn::Select": [4, {"Fn::Cidr": [{"Ref": "VpcCidr"}, 16, 4]}]}, "AvailabilityZone": {"Fn::Select": [0, {"Fn::GetAZs": ""}]}, "Tags": [{"Key": "Tier", "Value": "data"}]}},
+    "DataSubnetB": {"Type": "AWS::EC2::Subnet", "Properties": {"VpcId": {"Ref": "Vpc"}, "CidrBlock": {"Fn::Select": [5, {"Fn::Cidr": [{"Ref": "VpcCidr"}, 16, 4]}]}, "AvailabilityZone": {"Fn::Select": [1, {"Fn::GetAZs": ""}]}, "Tags": [{"Key": "Tier", "Value": "data"}]}},
+    "ApplicationSecurityGroup": {"Type": "AWS::EC2::SecurityGroup", "Properties": {"GroupDescription": "Application tasks; ingress is restricted to the environment ALB", "VpcId": {"Ref": "Vpc"}}},
+    "PublicRouteTable": {"Type": "AWS::EC2::RouteTable", "Properties": {"VpcId": {"Ref": "Vpc"}}},
+    "PublicDefaultRoute": {"Type": "AWS::EC2::Route", "DependsOn": "VpcGatewayAttachment", "Properties": {"RouteTableId": {"Ref": "PublicRouteTable"}, "DestinationCidrBlock": "0.0.0.0/0", "GatewayId": {"Ref": "InternetGateway"}}},
+    "PublicAssocA": {"Type": "AWS::EC2::SubnetRouteTableAssociation", "Properties": {"SubnetId": {"Ref": "PublicSubnetA"}, "RouteTableId": {"Ref": "PublicRouteTable"}}},
+    "PublicAssocB": {"Type": "AWS::EC2::SubnetRouteTableAssociation", "Properties": {"SubnetId": {"Ref": "PublicSubnetB"}, "RouteTableId": {"Ref": "PublicRouteTable"}}},
+    "NatEipA": {"Type": "AWS::EC2::EIP", "Properties": {"Domain": "vpc"}},
+    "NatA": {"Type": "AWS::EC2::NatGateway", "DependsOn": "VpcGatewayAttachment", "Properties": {"AllocationId": {"Fn::GetAtt": ["NatEipA", "AllocationId"]}, "SubnetId": {"Ref": "PublicSubnetA"}}},
+    "NatEipB": {"Type": "AWS::EC2::EIP", "Condition": "IsProd", "Properties": {"Domain": "vpc"}},
+    "NatB": {"Type": "AWS::EC2::NatGateway", "Condition": "IsProd", "DependsOn": "VpcGatewayAttachment", "Properties": {"AllocationId": {"Fn::GetAtt": ["NatEipB", "AllocationId"]}, "SubnetId": {"Ref": "PublicSubnetB"}}},
+    "AppRouteTableA": {"Type": "AWS::EC2::RouteTable", "Properties": {"VpcId": {"Ref": "Vpc"}}},
+    "AppRouteA": {"Type": "AWS::EC2::Route", "Properties": {"RouteTableId": {"Ref": "AppRouteTableA"}, "DestinationCidrBlock": "0.0.0.0/0", "NatGatewayId": {"Ref": "NatA"}}},
+    "AppAssocA": {"Type": "AWS::EC2::SubnetRouteTableAssociation", "Properties": {"SubnetId": {"Ref": "AppSubnetA"}, "RouteTableId": {"Ref": "AppRouteTableA"}}},
+    "AppRouteTableB": {"Type": "AWS::EC2::RouteTable", "Properties": {"VpcId": {"Ref": "Vpc"}}},
+    "AppRouteB": {"Type": "AWS::EC2::Route", "Condition": "IsProd", "Properties": {"RouteTableId": {"Ref": "AppRouteTableB"}, "DestinationCidrBlock": "0.0.0.0/0", "NatGatewayId": {"Ref": "NatB"}}},
+    "AppRouteBDev": {"Type": "AWS::EC2::Route", "Condition": "IsDev", "Properties": {"RouteTableId": {"Ref": "AppRouteTableB"}, "DestinationCidrBlock": "0.0.0.0/0", "NatGatewayId": {"Ref": "NatA"}}},
+    "AppAssocB": {"Type": "AWS::EC2::SubnetRouteTableAssociation", "Properties": {"SubnetId": {"Ref": "AppSubnetB"}, "RouteTableId": {"Ref": "AppRouteTableB"}}},
+    "DataRouteTable": {"Type": "AWS::EC2::RouteTable", "Properties": {"VpcId": {"Ref": "Vpc"}}},
+    "DataAssocA": {"Type": "AWS::EC2::SubnetRouteTableAssociation", "Properties": {"SubnetId": {"Ref": "DataSubnetA"}, "RouteTableId": {"Ref": "DataRouteTable"}}},
+    "DataAssocB": {"Type": "AWS::EC2::SubnetRouteTableAssociation", "Properties": {"SubnetId": {"Ref": "DataSubnetB"}, "RouteTableId": {"Ref": "DataRouteTable"}}}
+  },
+  "Outputs": {
+    "VpcId": {"Value": {"Ref": "Vpc"}},
+    "PublicSubnetIds": {"Value": {"Fn::Join": [",", [{"Ref": "PublicSubnetA"}, {"Ref": "PublicSubnetB"}]]}},
+    "AppSubnetIds": {"Value": {"Fn::Join": [",", [{"Ref": "AppSubnetA"}, {"Ref": "AppSubnetB"}]]}},
+    "DataSubnetIds": {"Value": {"Fn::Join": [",", [{"Ref": "DataSubnetA"}, {"Ref": "DataSubnetB"}]]}},
+    "ApplicationSecurityGroupId": {"Value": {"Ref": "ApplicationSecurityGroup"}}
+  }
+}

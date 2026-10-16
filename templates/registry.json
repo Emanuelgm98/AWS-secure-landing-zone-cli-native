@@ -1,0 +1,9 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Private container registry. Deploy before building and pushing the immutable application image.",
+  "Parameters": {"Environment": {"Type": "String", "AllowedValues": ["dev", "prod"]}},
+  "Resources": {
+    "Repository": {"Type": "AWS::ECR::Repository", "Properties": {"ImageScanningConfiguration": {"ScanOnPush": true}, "ImageTagMutability": "IMMUTABLE", "EncryptionConfiguration": {"EncryptionType": "AES256"}, "LifecyclePolicy": {"LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"description\":\"Keep recent images\",\"selection\":{\"tagStatus\":\"any\",\"countType\":\"imageCountMoreThan\",\"countNumber\":30},\"action\":{\"type\":\"expire\"}}]}"}}}
+  },
+  "Outputs": {"RepositoryUri": {"Value": {"Fn::GetAtt": ["Repository", "RepositoryUri"]}}}
+}

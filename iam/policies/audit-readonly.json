@@ -1,0 +1,6 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {"Sid": "ReadOnlyInventory", "Effect": "Allow", "Action": ["cloudformation:Describe*", "cloudformation:Get*", "cloudformation:List*", "ec2:Describe*", "ecs:Describe*", "ecs:List*", "elasticloadbalancing:Describe*", "rds:Describe*", "s3:GetAccountPublicAccessBlock", "s3:GetBucketLocation", "s3:GetBucketPolicyStatus", "s3:ListAllMyBuckets", "cloudtrail:DescribeTrails", "cloudtrail:GetTrailStatus", "config:Describe*", "guardduty:Get*", "guardduty:List*", "securityhub:Describe*", "securityhub:Get*", "securityhub:List*"], "Resource": "*"}
+  ]
+}

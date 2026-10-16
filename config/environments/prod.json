@@ -1,0 +1,17 @@
+{
+  "Environment": "prod",
+  "Region": "us-east-1",
+  "VpcCidr": "10.30.0.0/16",
+  "AvailabilityZoneCount": 2,
+  "NatGatewayCount": 2,
+  "TaskDesiredCount": 2,
+  "TaskCpu": 512,
+  "TaskMemory": 1024,
+  "AuroraMinACU": 0.5,
+  "AuroraMaxACU": 8,
+  "AuroraReaderCount": 1,
+  "EnableAuditStack": false,
+  "EnableCloudFront": false,
+  "EnableWaf": false,
+  "EnableInterfaceEndpoints": false
+}
