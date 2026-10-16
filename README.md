@@ -10,20 +10,61 @@ This repository is a CLI-native reference implementation for isolated `dev` and 
 
 ```mermaid
 flowchart TB
-    Dev[Developer / Operator] -->|AWS SSO + AWS CLI v2| Make[Makefile / phase scripts]
-    GH[GitHub Actions] -->|OIDC, scoped trust| IAM[IAM deployment role]
-    Make --> CFN[CloudFormation stacks]
-    IAM --> CFN
-    CFN --> Net[VPC: public, private and data subnets\nIGW, NAT, routes, endpoints, flow logs]
-    Net --> Edge[WAF + ALB HTTPS\nACM certificate]
-    Edge --> ECS[ECS Fargate service\nprivate subnets + autoscaling]
-    ECS --> ECR[ECR image repository\nscan on push]
-    ECS --> DB[Aurora PostgreSQL Serverless v2\nprivate data subnets + KMS]
-    ECS --> Secrets[Secrets Manager]
-    Net --> Sec[CloudTrail · Config · GuardDuty\nSecurity Hub · Access Analyzer]
-    ECS --> Obs[CloudWatch logs, alarms and dashboard]
-    Obs --> SNS[SNS notifications]
-    CFN --> State[S3 state/evidence bucket\nversioning + KMS + public access blocked]
+    Dev[Operator] -->|AWS SSO| CLI[Makefile + AWS CLI v2]
+    GH[GitHub Actions] -->|OIDC: repo + branch scoped| DeployRole[IAM deployment role]
+    CLI --> CFN[CloudFormation stacks]
+    DeployRole --> CFN
+    CFN --> VPC
+
+    subgraph VPC[VPC / 3 Availability Zones]
+      IGW[Internet Gateway]
+      subgraph AZ1[AZ-a]
+        Pub1[Public subnet\nALB + NAT]
+        Priv1[Private app subnet\nECS tasks]
+        Data1[Data subnet\nAurora]
+      end
+      subgraph AZ2[AZ-b]
+        Pub2[Public subnet\nALB + NAT in prod]
+        Priv2[Private app subnet\nECS tasks]
+        Data2[Data subnet\nAurora]
+      end
+      subgraph AZ3[AZ-c]
+        Pub3[Public subnet\nALB + NAT in prod]
+        Priv3[Private app subnet\nECS tasks]
+        Data3[Data subnet\nAurora]
+      end
+      RT[Route tables + NACLs + Security Groups]
+      EP[VPC endpoints\nS3 · ECR · KMS · Logs · Secrets]
+      Flow[VPC Flow Logs]
+    end
+
+    IGW --> Pub1 & Pub2 & Pub3
+    Pub1 -->|dev: single NAT| Priv1
+    Pub2 --> Priv2
+    Pub3 --> Priv3
+    RT --> Priv1 & Priv2 & Priv3 & Data1 & Data2 & Data3
+    EP --> Priv1 & Priv2 & Priv3
+    Flow --> AuditS3[(S3 audit bucket\nversioned + KMS)]
+
+    Pub1 --> WAF[ AWS WAF managed rules ]
+    WAF --> ALB[HTTPS ALB\nACM certificate]
+    ALB --> Priv1 & Priv2 & Priv3
+    Priv1 & Priv2 & Priv3 --> ECS[ECS Fargate service\nautoscaling + private SG]
+    ECS --> ECR[ECR\nscan on push]
+    ECS --> DB[(Aurora PostgreSQL\nServerless v2 + KMS)]
+    ECS --> Secrets[Secrets Manager\nDB credentials]
+
+    subgraph Security[Account security services]
+      CT[CloudTrail multi-region]
+      Config[AWS Config]
+      GD[GuardDuty]
+      SH[Security Hub]
+      AA[IAM Access Analyzer]
+    end
+    CT & Config & GD & SH & AA --> AuditS3
+    ECS --> CW[CloudWatch logs, metrics\ndashboard + alarms]
+    CW --> SNS[SNS notifications]
+    CFN --> State[S3 state + evidence\nBlock Public Access + KMS]
 ```
 
 ## What this solves
