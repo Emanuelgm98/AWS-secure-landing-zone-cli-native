@@ -1,0 +1,18 @@
+name: Manual future plan (disabled example)
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_local_only:
+        description: "A real plan needs separate approval and backend/credential setup; this example is intentionally disabled."
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+# No AWS credentials, OIDC token permission, backend, terraform init, or deployment steps are configured.
+jobs:
+  notice:
+    if: ${{ inputs.confirm_local_only }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Plan workflow is documentation-only and intentionally does not execute Terraform."

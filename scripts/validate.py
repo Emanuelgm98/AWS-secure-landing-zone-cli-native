@@ -2,6 +2,7 @@
 """Local-only contract validation. Does not call AWS or execute templates."""
 import json
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -66,6 +67,21 @@ def validate():
                     for dependency in dependencies:
                         if dependency not in resource_names:
                             errors.append(f"{path.name}:{resource_name}: unknown DependsOn {dependency}")
+                    if not isinstance(resource.get("Properties", {}), dict):
+                        errors.append(f"{path.name}:{resource_name}: Properties must be an object")
+
+                    # Guard basic S3 data-protection controls in CloudFormation.
+                    if resource.get("Type") == "AWS::S3::Bucket":
+                        props = resource.get("Properties", {})
+                        if props.get("PublicAccessBlockConfiguration", {}).get("BlockPublicAcls") is not True or props.get("PublicAccessBlockConfiguration", {}).get("BlockPublicPolicy") is not True:
+                            errors.append(f"{path.name}:{resource_name}: S3 public access must be blocked")
+                        encryption = props.get("BucketEncryption", {}).get("ServerSideEncryptionConfiguration", [])
+                        if not encryption:
+                            errors.append(f"{path.name}:{resource_name}: S3 default encryption is required")
+                    if resource.get("Type") == "AWS::S3::BucketPolicy":
+                        policy_text = json.dumps(resource.get("Properties", {}).get("PolicyDocument", {}))
+                        if "aws:SecureTransport" in policy_text and '"Bool"' not in policy_text:
+                            errors.append(f"{path.name}:{resource_name}: S3 policy must deny insecure transport")
 
                 def check_intrinsics(value, location="template"):
                     if isinstance(value, dict):
@@ -74,7 +90,8 @@ def validate():
                             if reference not in resource_names | parameter_names | pseudo_parameters:
                                 errors.append(f"{path.name}:{location}: unknown Ref {reference}")
                         if "Fn::GetAtt" in value:
-                            target = value["Fn::GetAtt"][0]
+                            get_att = value["Fn::GetAtt"]
+                            target = get_att[0] if isinstance(get_att, list) and get_att else None
                             if target not in resource_names:
                                 errors.append(f"{path.name}:{location}: unknown GetAtt target {target}")
                         for key, child in value.items():
@@ -83,6 +100,15 @@ def validate():
                         for index, child in enumerate(value):
                             check_intrinsics(child, f"{location}[{index}]")
                 check_intrinsics(template)
+                for output_name, output in template.get("Outputs", {}).items():
+                    check_intrinsics(output, f"Outputs.{output_name}")
+                for resource_name, resource in template.get("Resources", {}).items():
+                    condition = resource.get("Condition")
+                    if condition in condition_names:
+                        condition_json = json.dumps(template.get("Conditions", {}).get(condition))
+                        for reference in re.findall(r'"Ref":\s*"([^\"]+)"', condition_json):
+                            if reference in resource_names and template["Resources"][reference].get("Condition") != condition:
+                                errors.append(f"{path.name}:{resource_name}: Condition {condition} references resource {reference} with incompatible condition")
         except (OSError, json.JSONDecodeError) as exc:
             errors.append(f"{path.relative_to(ROOT)}: {exc}")
 
@@ -117,6 +143,12 @@ def validate():
             errors.append("app: application security group parameter is required")
         if not any(r.get("Type") == "AWS::EC2::SecurityGroupIngress" for r in app.values()):
             errors.append("app: explicit ALB-to-task security group ingress is required")
+        app_template = load_json(ROOT / "templates" / "app.json")
+        if app_template.get("Outputs", {}).get("ServiceName", {}).get("Value") != {"Fn::Sub": "${Environment}-app"}:
+            errors.append("app: ServiceName output must use the known ECS service name, not an unsupported GetAtt")
+        data_template = load_json(ROOT / "templates" / "data.json")
+        if data_template["Resources"]["DatabaseSecret"]["Properties"].get("KmsKeyId") != {"Fn::GetAtt": ["DatabaseKey", "Arn"]}:
+            errors.append("data: database secret must use the dedicated KMS key")
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         errors.append(f"template invariant check failed: {exc}")
 

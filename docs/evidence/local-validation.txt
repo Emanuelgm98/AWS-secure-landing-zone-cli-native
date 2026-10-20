@@ -1,0 +1,25 @@
+Local validation evidence register
+===================================
+
+Scope: checks actually observed during local preparation only. No AWS operation,
+credential inspection, remote template validation, deployment or runtime check is
+claimed.
+
+Observed:
+  python scripts/validate.py: passed (local only)
+  python -m unittest discover -s tests -v: 9 tests passed
+  python scripts/plan.py --environment dev: LOCAL PLAN ONLY
+  python scripts/plan.py --environment prod: LOCAL PLAN ONLY
+  python scripts/preflight.py --environment dev/prod: passed; cfn-lint and Checkov skipped (not installed)
+  deploy.py / verify.py / destroy.py entry points: each returned exit 2, BLOCKED
+  git diff --check: passed; README line-ending conversion warnings only
+  Repository has no web application/local web server; no browser endpoint applies.
+
+Still pending: scanner results; AWS service/schema validation; quota/IAM/account/OIDC
+review; dated cost estimates; app image, DNS/certificate, health, backup restore,
+monitoring, deployment, postdeployment, cleanup and cloud evidence. The audit template
+has Config recorder/channel definitions but no recorder start operation; future
+approved design must address and validate its lifecycle. Plan output placeholders
+require a future stack output mapping layer.
+
+No fabricated evidence or deployment artifacts are stored here.
