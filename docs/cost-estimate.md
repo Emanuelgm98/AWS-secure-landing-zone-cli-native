@@ -1,0 +1,3 @@
+# Cost estimate
+
+No price quote is provided: no region, account inventory, event volume, retention, replication or usage profile is approved. Expected cost drivers include CloudTrail data events, Config recorded items/rules, S3 storage and requests, KMS keys/requests, inter-region replication, Identity Center (service pricing/terms), and operational state storage. Before deployment, use current AWS pricing for selected regions and documented retention/volume assumptions; model baseline and growth cases and obtain budget-owner approval. This document asserts no deployed resources or measured spend.

@@ -1,0 +1,14 @@
+﻿variable "audit_bucket_name" { type = string }
+variable "account_id" { type = string
+  description = "Security account ID for the future Config role ARN." }
+module "archive" { source = "../../modules/log-archive"
+  bucket_name = var.audit_bucket_name }
+module "trail" { source = "../../modules/cloudtrail"
+  bucket_name = module.archive.bucket_name
+  kms_key_arn = module.archive.kms_key_arn }
+module "config" { source = "../../modules/aws-config"
+  bucket_name = module.archive.bucket_name
+  kms_key_arn = module.archive.kms_key_arn
+  recording_role_arn = "arn:aws:iam::${var.account_id}:role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig" }
+module "identity_center" { source = "../../modules/iam-identity-center" }
+output "trail_arn" { value = module.trail.trail_arn }

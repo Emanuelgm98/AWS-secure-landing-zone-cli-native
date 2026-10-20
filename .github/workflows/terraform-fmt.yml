@@ -1,0 +1,13 @@
+name: Terraform format
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8" # pinned example; review before enabling
+      - run: terraform fmt -check -recursive terraform

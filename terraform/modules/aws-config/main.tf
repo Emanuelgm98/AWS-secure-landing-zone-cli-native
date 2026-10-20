@@ -1,0 +1,15 @@
+﻿variable "bucket_name" { type = string }
+variable "kms_key_arn" { type = string }
+variable "recording_role_arn" { type = string }
+resource "aws_config_configuration_recorder" "this" { name = "organization-config"
+  role_arn = var.recording_role_arn
+  recording_group { all_supported = true
+  include_global_resource_types = true } }
+resource "aws_config_delivery_channel" "this" { name = "organization-config"
+  s3_bucket_name = var.bucket_name
+  s3_kms_key_arn = var.kms_key_arn
+  depends_on = [aws_config_configuration_recorder.this] }
+resource "aws_config_configuration_recorder_status" "this" { name = aws_config_configuration_recorder.this.name
+  is_enabled = true
+  depends_on = [aws_config_delivery_channel.this] }
+output "recorder_name" { value = aws_config_configuration_recorder.this.name }

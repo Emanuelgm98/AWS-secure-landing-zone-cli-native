@@ -1,0 +1,3 @@
+# IAM model
+
+Use IAM Identity Center federation and named groups; avoid long-lived IAM users. The module creates only a sample ReadOnlyAccess permission set, not assignments or identity sources. Managed ReadOnlyAccess may be broader than a purpose-built audit role and should be replaced/scoped after review. Service roles for Config and CloudTrail need service-specific trust and narrowly scoped bucket/KMS permissions. SCPs set permission ceilings and do not grant permissions. Review root and management-account behavior, delegated administration, emergency access, boundaries, session duration, MFA, access reviews and break-glass testing before use.

@@ -1,0 +1,3 @@
+# Manual deployment (future only)
+
+No deployment procedure is enabled. After prerequisites and change approval, an operator should use an isolated workstation and approved identity, initialize only the reviewed root with the approved backend/provider locks, validate, inspect a saved plan, obtain independent approval, then apply that exact plan. This repository currently has no backend configuration, environment values, initialized providers, active credentials, or verified AWS compatibility. Never use the example workflow as deployment authorization. No AWS action was taken while preparing this reference.

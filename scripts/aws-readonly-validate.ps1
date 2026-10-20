@@ -2,10 +2,14 @@ param(
     [Parameter(Mandatory = $true)]
     [ValidateSet('dev', 'prod')]
     [string]$Environment,
-    [string]$Profile
+    [string]$Profile,
+    [switch]$ExplicitAwsAuthorization
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $ExplicitAwsAuthorization) {
+    throw 'BLOCKED: AWS access is disabled by default. This repository review forbids AWS commands. Only a separately authorized future operator may pass -ExplicitAwsAuthorization.'
+}
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $repoRoot
 try {

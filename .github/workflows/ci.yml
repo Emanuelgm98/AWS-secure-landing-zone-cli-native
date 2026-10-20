@@ -1,0 +1,35 @@
+name: Local IaC validation
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/validate.py
+      - run: python -m unittest discover -s tests -v
+      - run: python scripts/plan.py --environment dev
+      - run: python scripts/plan.py --environment prod
+  cfn-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: awslabs/cfn-lint-action@v2
+        with:
+          args: templates/*.json
+  checkov:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: templates
+          framework: cloudformation
+          soft_fail: false
